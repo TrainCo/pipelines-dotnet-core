@@ -1,0 +1,56 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - master
+
+  workflow_dispatch:
+
+env:
+  BUILD_CONFIGURATION: Release
+
+jobs:
+  build:
+    name: Build, test, and publish
+    runs-on: self-hosted
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: >
+          dotnet build
+          --configuration "${{ env.BUILD_CONFIGURATION }}"
+          --no-restore
+
+      - name: Test
+        run: >
+          dotnet test
+          --configuration "${{ env.BUILD_CONFIGURATION }}"
+          --no-build
+          --no-restore
+
+      - name: Publish
+        run: >
+          dotnet publish
+          --configuration "${{ env.BUILD_CONFIGURATION }}"
+          --no-build
+          --output "${{ github.workspace }}/publish"
+
+      - name: Create deployment package
+        shell: bash
+        run: |
+          cd "${{ github.workspace }}/publish"
+          zip -r "${{ github.workspace }}/webapp.zip" .
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: drop
+          path: ${{ github.workspace }}/webapp.zip
+          if-no-files-found: error
